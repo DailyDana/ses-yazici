@@ -1,0 +1,4 @@
+*.cmd text eol=crlf
+OKU-BENI.txt text eol=crlf
+*.py text eol=lf
+*.html text eol=lf

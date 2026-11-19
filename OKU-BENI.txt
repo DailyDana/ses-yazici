@@ -1,0 +1,28 @@
+SES-YAZICI
+==========
+Seçtiğin uygulamanın (ör. tarayıcının) sesini dinler ve konuşmaları canlı olarak yazıya döker.
+Her şey bilgisayarında çalışır, ses hiçbir yere gönderilmez.
+
+KULLANIM
+1. Klasörü istediğin yere çıkar.
+2. Baslat.cmd'ye çift tıkla. Windows "bilgisayarınızı korudu" uyarısı verirse
+   "Ek bilgi" > "Yine de çalıştır" de.
+   - İlk açılışta gerekli dosyaları kendisi kurar (birkaç dakika). NVIDIA kart varsa
+     ayrıca ~1 GB CUDA paketi iner.
+   - Sonra tarayıcıda Ses-Yazıcı sayfası açılır.
+3. "Dinlenecek uygulama"dan tarayıcını seç (ses çalan uygulamaların yanında ♪ işareti olur),
+   "Kaydı başlat"a bas. Model ilk kullanımda indirilir (yüksek doğruluk ~0,8–1,6 GB).
+4. Metin 25–40 saniyelik parçalar hâlinde gelir. Bitince "Kaydı durdur".
+
+Kayıtlar: Belgeler\Ses-Yazici klasörüne .txt olarak kaydedilir.
+
+BİLMEN GEREKENLER
+- Sekme değil uygulama dinlenir: Firefox seçiliyken Firefox'un bütün sekmelerinin sesi yazılır.
+  Kurs/video dışındaki şeyleri başka bir tarayıcıda aç.
+- Tarayıcıyı kapatıp açarsan kaydı durdurup yeniden başlat.
+- Yavaş kalıyorsa (metin çok geç geliyorsa) model olarak "Hızlı" seçeneğini dene.
+- Windows 10 (2004 ve sonrası) ya da Windows 11 gerekir.
+- Programı kapatmak için sayfadaki "Programı kapat"a bas. Siyah pencereyi doğrudan kapatırsan
+  son 30-40 saniyelik konuşma yazıya dökülmeden kaybolur.
+- Program her açılışta yeni sürüm var mı diye bakar, varsa kendini günceller.
+  Kaynak: https://github.com/DailyDana/ses-yazici

@@ -1,0 +1,8 @@
+.venv/
+.arac/
+.yedek/
+modeller/
+__pycache__/
+*.yeni
+*.tmp
+*.log

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ses-Yazıcı</title>
+<style>
+  :root {
+    --zemin: #14161a; --kart: #1d2026; --cizgi: #2c3038; --yazi: #e8e6e1; --soluk: #9a9ca3;
+    --vurgu: #e8a33d; --kirmizi: #e5484d; --yesil: #46a758;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--zemin); color: var(--yazi);
+         font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .kap { max-width: 920px; margin: 0 auto; padding: 28px 20px 40px; }
+  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: -.5px; }
+  h1 span { color: var(--vurgu); }
+  header small { color: var(--soluk); }
+  .kart { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 12px; padding: 18px; }
+  .ayarlar { display: grid; grid-template-columns: 2fr 1.4fr 1fr; gap: 14px; align-items: end; }
+  label { display: block; font-size: 12px; color: var(--soluk); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; }
+  select, button { font: inherit; color: var(--yazi); background: #262a31; border: 1px solid var(--cizgi);
+                   border-radius: 8px; padding: 9px 11px; width: 100%; }
+  select:focus, button:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 1px; }
+  .satir { display: flex; gap: 8px; }
+  .satir select { flex: 1; }
+  .kucuk { width: auto; padding: 9px 12px; cursor: pointer; }
+  .kontrol { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+  #anaDugme { width: auto; min-width: 190px; padding: 13px 22px; font-size: 16px; font-weight: 600;
+              border: none; cursor: pointer; background: var(--vurgu); color: #1a1405; }
+  #anaDugme.kayit { background: var(--kirmizi); color: #fff; }
+  #anaDugme:disabled { opacity: .5; cursor: default; }
+  .seviye { flex: 1; height: 8px; background: #262a31; border-radius: 4px; overflow: hidden; }
+  .seviye div { height: 100%; width: 0; background: var(--yesil); transition: width .25s; }
+  #sure { font-variant-numeric: tabular-nums; color: var(--soluk); min-width: 64px; text-align: right; }
+  #durum { margin-top: 12px; color: var(--soluk); font-size: 14px; min-height: 21px; }
+  #durum.hata { color: var(--kirmizi); }
+  .ilerleme { display: none; margin-top: 10px; height: 6px; background: #262a31; border-radius: 3px; overflow: hidden; }
+  .ilerleme div { height: 100%; width: 0; background: var(--vurgu); transition: width .4s; }
+  .metinBas { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; }
+  .metinBas h2 { margin: 0; font-size: 16px; }
+  .metinBas .satir button { width: auto; cursor: pointer; }
+  #metin { min-height: 320px; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; }
+  #metin p { margin: 0 0 12px; }
+  #metin time { color: var(--vurgu); font-size: 12px; margin-right: 8px; font-variant-numeric: tabular-nums; }
+  .bos { color: var(--soluk); text-align: center; padding: 90px 20px; }
+  .caliyor { color: var(--yesil); }
+  footer { margin-top: 18px; color: var(--soluk); font-size: 12px; display: flex; justify-content: space-between; }
+  footer button { width: auto; background: none; border: none; color: var(--soluk); cursor: pointer; padding: 0; text-decoration: underline; }
+  @media (max-width: 680px) { .ayarlar { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="kap">
+  <header><h1>Ses<span>·</span>Yazıcı</h1><small id="motor"></small></header>
+
+  <section class="kart">
+    <div class="ayarlar">
+      <div>
+        <label for="kaynak">Dinlenecek uygulama</label>
+        <div class="satir">
+          <select id="kaynak"></select>
+          <button class="kucuk" id="yenile" title="Listeyi yenile">↻</button>
+        </div>
+      </div>
+      <div>
+        <label for="model">Model</label>
+        <select id="model"></select>
+      </div>
+      <div>
+        <label for="dil">Dil</label>
+        <select id="dil">
+          <option value="tr">Türkçe</option>
+          <option value="en">İngilizce</option>
+          <option value="auto">Otomatik</option>
+        </select>
+      </div>
+    </div>
+    <div class="kontrol">
+      <button id="anaDugme">● Kaydı başlat</button>
+      <div class="seviye" title="Gelen ses seviyesi"><div id="seviye"></div></div>
+      <span id="sure">00:00</span>
+    </div>
+    <div class="ilerleme" id="ilerleme"><div></div></div>
+    <div id="durum">Hazır. Bir uygulama seçip kaydı başlatın.</div>
+  </section>
+
+  <div class="metinBas">
+    <h2>Yazıya dökülen metin</h2>
+    <div class="satir">
+      <button id="kopyala">Kopyala</button>
+      <button id="klasor">Kayıt klasörünü aç</button>
+    </div>
+  </div>
+  <section class="kart" id="metin"><div class="bos">Kayıt başlayınca metin burada belirecek.<br>Konuşmalar ~25–40 saniyelik parçalar hâlinde gelir.</div></section>
+
+  <footer>
+    <span id="klasorYolu"></span>
+    <button id="kapat">Programı kapat</button>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let kayitta = false, dosya = "", basla = 0, sayac = null, seviyeT = 0;
+
+async function al(yol) { return (await fetch(yol)).json(); }
+async function gonder(yol, veri = {}) {
+  return (await fetch(yol, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(veri) })).json();
+}
+
+async function kaynaklar() {
+  const onceki = $("kaynak").value;
+  $("kaynak").innerHTML = "<option>yükleniyor…</option>";
+  const liste = await al("/kaynaklar");
+  $("kaynak").innerHTML = "";
+  for (const k of liste) {
+    const o = document.createElement("option");
+    o.value = k.id;
+    o.textContent = (k.id === "*sistem*" ? "🔊 " : k.caliyor ? "♪ " : "") + k.ad + (k.caliyor && k.id !== "*sistem*" ? "  (ses çalıyor)" : "");
+    $("kaynak").appendChild(o);
+  }
+  if (onceki && [...$("kaynak").options].some(o => o.value === onceki)) $("kaynak").value = onceki;
+  else if (localStorage.kaynak && [...$("kaynak").options].some(o => o.value === localStorage.kaynak)) $("kaynak").value = localStorage.kaynak;
+}
+
+async function bilgi() {
+  const b = await al("/bilgi");
+  $("motor").textContent = "v" + b.surum + " • Motor: " + b.motor;
+  $("klasorYolu").textContent = "Kayıtlar: " + b.klasor;
+  $("model").innerHTML = "";
+  for (const m of b.modeller) {
+    const o = document.createElement("option");
+    o.value = m.id;
+    o.textContent = m.ad + (m.inmis ? "" : `  — ilk kullanımda ~${m.mb} MB indirilir`);
+    $("model").appendChild(o);
+  }
+  if (localStorage.model) $("model").value = localStorage.model;
+  if (localStorage.dil) $("dil").value = localStorage.dil;
+  if (b.kayit) kayitModu(true);
+}
+
+function durum(metin, hata = false) { $("durum").textContent = metin; $("durum").className = hata ? "hata" : ""; }
+
+function kayitModu(acik) {
+  kayitta = acik;
+  $("anaDugme").textContent = acik ? "■ Kaydı durdur" : "● Kaydı başlat";
+  $("anaDugme").classList.toggle("kayit", acik);
+  ["kaynak", "model", "dil", "yenile"].forEach(id => $(id).disabled = acik);
+  clearInterval(sayac);
+  if (acik) {
+    basla = Date.now();
+    sayac = setInterval(() => {
+      const s = Math.floor((Date.now() - basla) / 1000);
+      $("sure").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+    }, 1000);
+  } else { $("seviye").style.width = "0"; }
+}
+
+function satirEkle(zaman, metin) {
+  const kutu = $("metin");
+  if (kutu.querySelector(".bos")) kutu.innerHTML = "";
+  const altta = kutu.scrollHeight - kutu.scrollTop - kutu.clientHeight < 40;
+  const p = document.createElement("p");
+  const t = document.createElement("time"); t.textContent = zaman;
+  p.appendChild(t); p.appendChild(document.createTextNode(metin));
+  kutu.appendChild(p);
+  if (altta) kutu.scrollTop = kutu.scrollHeight;
+}
+
+$("anaDugme").onclick = async () => {
+  if (kayitta) { $("anaDugme").disabled = true; durum("Durduruluyor…"); await gonder("/durdur"); return; }
+  localStorage.kaynak = $("kaynak").value; localStorage.model = $("model").value; localStorage.dil = $("dil").value;
+  $("metin").innerHTML = '<div class="bos">Hazırlanıyor…</div>';
+  $("sure").textContent = "00:00";
+  kayitModu(true);
+  const r = await gonder("/baslat", { kaynak: $("kaynak").value, model: $("model").value, dil: $("dil").value });
+  if (!r.ok) { durum(r.hata, true); kayitModu(false); }
+};
+$("yenile").onclick = kaynaklar;
+$("kopyala").onclick = async () => {
+  const metin = [...$("metin").querySelectorAll("p")].map(p => p.textContent.replace(/^(\d\d:\d\d:\d\d)/, "[$1] ")).join("\n\n");
+  await navigator.clipboard.writeText(metin);
+  $("kopyala").textContent = "Kopyalandı ✓"; setTimeout(() => $("kopyala").textContent = "Kopyala", 1500);
+};
+$("klasor").onclick = () => gonder("/klasor", { dosya });
+$("kapat").onclick = async () => {
+  if (!confirm("Program kapatılsın mı? Süren kayıt durdurulur.")) return;
+  await gonder("/kapat"); document.body.innerHTML = '<div class="kap"><p class="bos">Program kapatıldı. Bu sekmeyi kapatabilirsiniz.</p></div>';
+};
+
+const es = new EventSource("/olaylar");
+es.onmessage = (e) => {
+  const o = JSON.parse(e.data);
+  if (o.tur === "durum") { durum(o.metin); if (o.dosya) dosya = o.dosya; }
+  else if (o.tur === "indirme") {
+    $("ilerleme").style.display = "block";
+    $("ilerleme").firstElementChild.style.width = o.yuzde + "%";
+    durum(`Model indiriliyor… %${o.yuzde.toFixed(0)}`);
+    if (o.yuzde >= 100) setTimeout(() => $("ilerleme").style.display = "none", 800);
+  }
+  else if (o.tur === "basladi") {
+    dosya = o.dosya; $("metin").innerHTML = '<div class="bos">Dinleniyor… İlk metin ~25 saniye içinde gelir.</div>';
+    bilgi();
+  }
+  else if (o.tur === "satir") satirEkle(o.zaman, o.metin);
+  else if (o.tur === "seviye") {
+    const now = Date.now(); if (now - seviyeT < 200) return; seviyeT = now;
+    $("seviye").style.width = Math.min(100, Math.sqrt(o.rms) * 260) + "%";
+  }
+  else if (o.tur === "hata") durum(o.metin, true);
+  else if (o.tur === "uyari") durum(o.metin, true);
+  else if (o.tur === "bitti") { kayitModu(false); $("anaDugme").disabled = false; if (o.dosya) dosya = o.dosya; }
+};
+es.onerror = () => durum("Program kapalı ya da bağlantı koptu. Baslat.cmd ile yeniden açın.", true);
+
+bilgi(); kaynaklar();
+</script>
+</body>
+</html>
