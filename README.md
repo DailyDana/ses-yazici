@@ -18,6 +18,7 @@ Açılan sayfada dinlenecek uygulamayı seç, "Kaydı başlat"a bas. Metin 25–
 - Sekme değil uygulama dinlenir. Firefox seçiliyse Firefox'un bütün sekmelerinin sesi yazılır.
 - Tarayıcıyı kapatıp açarsan kaydı yeniden başlat.
 - Metin geç geliyorsa "Hızlı" modeli seç.
+- "Ben duymayayım" işaretliyse kayıt boyunca uygulamanın sesi kullanmadığın bir ses çıkışına gider, kayıt bitince geri döner. Sessize almak işe yaramaz: sessize alınan ses kayda da gelmez.
 
 ## Donanım
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 KOK = Path(__file__).resolve().parent
 DOSYALAR = ["Baslat.cmd", "calistir.cmd", "app.py", "surec_ses.py", "guncelle.py", "requirements.txt",
-            "requirements-nvidia.txt", "OKU-BENI.txt", "SURUM", "LICENSE", "web/index.html"]
+            "requirements-nvidia.txt", "OKU-BENI.txt", "SURUM", "LICENSE", "web/index.html", "ses_yonlendir.py"]
 CRLF = {"Baslat.cmd", "calistir.cmd", "OKU-BENI.txt"}
 
 hedef = KOK.parent / "Ses-Yazici.zip"

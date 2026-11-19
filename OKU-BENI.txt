@@ -21,6 +21,9 @@ BİLMEN GEREKENLER
   Kurs/video dışındaki şeyleri başka bir tarayıcıda aç.
 - Tarayıcıyı kapatıp açarsan kaydı durdurup yeniden başlat.
 - Yavaş kalıyorsa (metin çok geç geliyorsa) model olarak "Hızlı" seçeneğini dene.
+- Sesi kendin duymak istemiyorsan "Ben duymayayım"ı işaretle: kayıt boyunca ses kullanmadığın bir
+  çıkışa (ör. Dijital Çıkış) gider, kayıt bitince geri döner. Uygulamayı sessize ALMA; sessize
+  alınan ses kayda da gelmez.
 - Windows 10 (2004 ve sonrası) ya da Windows 11 gerekir.
 - Programı kapatmak için sayfadaki "Programı kapat"a bas. Siyah pencereyi doğrudan kapatırsan
   son 30-40 saniyelik konuşma yazıya dökülmeden kaybolur.

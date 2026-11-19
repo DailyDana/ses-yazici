@@ -8,6 +8,11 @@ Ses-Yazıcı: seçilen uygulamanın (ör. tarayıcının) sesini dinleyip canlı
 """
 import surec_ses  # comtypes'tan ÖNCE içe aktarılmalı (COM çok iş parçacıklı mod)
 
+try:
+    import ses_yonlendir  # "Ben duymayayım": uygulamanın sesini başka çıkışa alır
+except Exception:  # dosya eksik (yarım güncelleme) ya da bu Windows'ta desteklenmiyor
+    ses_yonlendir = None
+
 import datetime as dt
 import json
 import os
@@ -349,6 +354,45 @@ def kaynaklari_listele():
     return sonuc
 
 
+# ------------------------------------------------------------------ "Ben duymayayım"
+YON_ISARET = KOK / ".yonlendirme"  # kayıt sürerken hangi uygulamanın sesi başka çıkışa alındı
+
+
+def agac_pidleri(kok_pid):
+    import psutil
+
+    try:
+        kok = psutil.Process(kok_pid)
+        return [kok_pid] + [c.pid for c in kok.children(recursive=True)]
+    except psutil.Error:
+        return [kok_pid]
+
+
+def sessiz_cikislar():
+    if ses_yonlendir is None:
+        return []
+    try:
+        return ses_yonlendir.sessiz_cikislar()
+    except Exception:
+        return []
+
+
+def yonlendirmeyi_geri_al():
+    """Uygulamanın sesini Windows varsayılanına döndür. Program kayıt sırasında kapandıysa
+    işaret dosyası kalır; bir sonraki açılışta buradan düzeltilir."""
+    if ses_yonlendir is None or not YON_ISARET.exists():
+        return
+    try:
+        exe = YON_ISARET.read_text(encoding="utf-8").strip()
+        pid = surec_ses.kok_pid_bul(exe)
+        if pid is None:
+            return  # uygulama kapalı: işaret kalsın, açıkken yeniden denenir
+        if ses_yonlendir.geri_al(agac_pidleri(pid)):
+            YON_ISARET.unlink(missing_ok=True)
+    except Exception:
+        gunluk(traceback.format_exc())
+
+
 # ------------------------------------------------------------------ kayıt
 class Kayit:
     def __init__(self):
@@ -358,20 +402,20 @@ class Kayit:
         self.th = None
         self.kilit = threading.Lock()
 
-    def baslat(self, kaynak, model, dil):
+    def baslat(self, kaynak, model, dil, sessiz=""):
         with self.kilit:
             if self.calisiyor:
                 return False
             self.calisiyor = True
         self.dur.clear()
-        self.th = threading.Thread(target=self._calis, args=(kaynak, model, dil), daemon=True)
+        self.th = threading.Thread(target=self._calis, args=(kaynak, model, dil, sessiz), daemon=True)
         self.th.start()
         return True
 
     def durdur(self):
         self.dur.set()
 
-    def _calis(self, kaynak, model, dil):
+    def _calis(self, kaynak, model, dil, sessiz=""):
         try:
             MOTOR.hazirla(model)
             CIKTI_KOK.mkdir(parents=True, exist_ok=True)
@@ -396,6 +440,15 @@ class Kayit:
                 kaydedici = surec_ses.SurecKaydedici(pid)
                 kaynak_ad = kaynak.removesuffix(".exe")
                 izlenen_pid = pid
+                if sessiz and ses_yonlendir is not None:
+                    yonlendirmeyi_geri_al()  # önceki kayıttan kalan varsa önce onu düzelt
+                    YON_ISARET.write_text(kaynak, encoding="utf-8")
+                    if ses_yonlendir.yonlendir(agac_pidleri(pid), sessiz):
+                        kaynak_ad += " (ses size verilmiyor)"
+                    else:
+                        YON_ISARET.unlink(missing_ok=True)
+                        YAYIN.gonder("uyari", metin="Ses başka çıkışa alınamadı; kayıt sürüyor ama sesi "
+                                                    "siz de duyacaksınız.")
 
             durum(f"Kayıt sürüyor: {kaynak_ad} • {MOTOR.cihaz} • kayıt dosyası hazır", dosya=str(self.dosya))
             YAYIN.gonder("basladi", dosya=str(self.dosya), cihaz=MOTOR.cihaz)
@@ -468,6 +521,7 @@ class Kayit:
             gunluk(traceback.format_exc())
             YAYIN.gonder("hata", metin=f"Hata: {e}")
         finally:
+            yonlendirmeyi_geri_al()
             self.calisiyor = False
             YAYIN.gonder("bitti", dosya=str(self.dosya) if self.dosya else "")
 
@@ -513,6 +567,8 @@ class Isleyici(BaseHTTPRequestHandler):
             self.wfile.write(govde)
         elif self.path == "/kaynaklar":
             self._json(kaynaklari_listele())
+        elif self.path == "/cikislar":
+            self._json(sessiz_cikislar())
         elif self.path == "/bilgi":
             self._json({
                 "modeller": [{"id": k, "ad": v["ad"], "mb": MOTOR.mb(k), "inmis": MOTOR.indirilmis_mi(k)}
@@ -556,7 +612,10 @@ class Isleyici(BaseHTTPRequestHandler):
             model = veri.get("model", "turbo")
             if model not in MODELLER:
                 return self._json({"ok": False, "hata": "Bilinmeyen model"})
-            if not KAYIT.baslat(str(veri.get("kaynak", "*sistem*")), model, str(veri.get("dil", "tr"))):
+            sessiz = str(veri.get("sessiz") or "")
+            if sessiz and sessiz not in {c["id"] for c in sessiz_cikislar()}:
+                return self._json({"ok": False, "hata": "Seçilen ses çıkışı artık yok; listeyi yenileyin."})
+            if not KAYIT.baslat(str(veri.get("kaynak", "*sistem*")), model, str(veri.get("dil", "tr")), sessiz):
                 return self._json({"ok": False, "hata": "Kayıt zaten sürüyor"})
             self._json({"ok": True})
         elif self.path == "/hazirla":
@@ -625,6 +684,7 @@ def main():
         if "--tarayici-acma" not in sys.argv:
             webbrowser.open(acik)
         return
+    yonlendirmeyi_geri_al()  # önceki oturum kayıt sırasında kapandıysa sesi geri ver
     port = bos_port()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Isleyici)
     url = f"http://127.0.0.1:{srv.server_address[1]}/"

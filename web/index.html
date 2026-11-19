@@ -27,6 +27,11 @@
   .satir select { flex: 1; }
   .kucuk { width: auto; padding: 9px 12px; cursor: pointer; }
   .kontrol { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+  .sessizSatir { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .sessizSatir[hidden] { display: none; }
+  .sessizSatir label.onay { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; color: inherit; text-transform: none; letter-spacing: 0; cursor: pointer; white-space: nowrap; }
+  .sessizSatir select { width: auto; max-width: 340px; }
+  .sessizSatir .ipucu { font-size: 12px; color: var(--soluk); flex: 1 1 220px; }
   #anaDugme { width: auto; min-width: 190px; padding: 13px 22px; font-size: 16px; font-weight: 600;
               border: none; cursor: pointer; background: var(--vurgu); color: #1a1405; }
   #anaDugme.kayit { background: var(--kirmizi); color: #fff; }
@@ -77,6 +82,11 @@
         </select>
       </div>
     </div>
+    <div class="sessizSatir" id="sessizSatir" hidden>
+      <label class="onay"><input type="checkbox" id="sessiz"> Ben duymayayım</label>
+      <select id="cikis" title="Ses kayıt boyunca bu çıkışa gönderilir" hidden></select>
+      <span class="ipucu" id="sessizIpucu"></span>
+    </div>
     <div class="kontrol">
       <button id="anaDugme">● Kaydı başlat</button>
       <div class="seviye" title="Gelen ses seviyesi"><div id="seviye"></div></div>
@@ -125,6 +135,32 @@ async function kaynaklar() {
   else if (localStorage.kaynak && [...$("kaynak").options].some(o => o.value === localStorage.kaynak)) $("kaynak").value = localStorage.kaynak;
 }
 
+async function cikislar() {
+  const liste = await al("/cikislar");
+  $("cikis").innerHTML = "";
+  for (const c of liste) {
+    const o = document.createElement("option");
+    o.value = c.id; o.textContent = "→ " + c.ad;
+    $("cikis").appendChild(o);
+  }
+  if (localStorage.cikis && liste.some(c => c.id === localStorage.cikis)) $("cikis").value = localStorage.cikis;
+  $("sessiz").checked = localStorage.sessiz === "1" && liste.length > 0;
+  $("sessiz").dataset.var = liste.length ? "1" : "";
+  sessizGuncelle();
+}
+
+function sessizGuncelle() {
+  const sistem = $("kaynak").value === "*sistem*";
+  const varMi = $("sessiz").dataset.var === "1";
+  $("sessizSatir").hidden = sistem;
+  $("sessiz").disabled = kayitta || !varMi;
+  $("cikis").disabled = kayitta;
+  $("cikis").hidden = !($("sessiz").checked && varMi);
+  $("sessizIpucu").textContent = !varMi ? "Kullanılmayan bir ses çıkışı bulunamadı."
+    : $("sessiz").checked ? "Kayıt boyunca ses bu çıkışa gider, bitince size geri döner. Oradan da ses geliyorsa başka bir çıkış seçin."
+    : "";
+}
+
 async function bilgi() {
   const b = await al("/bilgi");
   $("motor").textContent = "v" + b.surum + " • Motor: " + b.motor;
@@ -148,6 +184,7 @@ function kayitModu(acik) {
   $("anaDugme").textContent = acik ? "■ Kaydı durdur" : "● Kaydı başlat";
   $("anaDugme").classList.toggle("kayit", acik);
   ["kaynak", "model", "dil", "yenile"].forEach(id => $(id).disabled = acik);
+  sessizGuncelle();
   clearInterval(sayac);
   if (acik) {
     basla = Date.now();
@@ -175,10 +212,14 @@ $("anaDugme").onclick = async () => {
   $("metin").innerHTML = '<div class="bos">Hazırlanıyor…</div>';
   $("sure").textContent = "00:00";
   kayitModu(true);
-  const r = await gonder("/baslat", { kaynak: $("kaynak").value, model: $("model").value, dil: $("dil").value });
+  const sessiz = $("sessiz").checked && $("sessiz").dataset.var === "1" && $("kaynak").value !== "*sistem*" ? $("cikis").value : "";
+  localStorage.sessiz = $("sessiz").checked ? "1" : "0"; if ($("cikis").value) localStorage.cikis = $("cikis").value;
+  const r = await gonder("/baslat", { kaynak: $("kaynak").value, model: $("model").value, dil: $("dil").value, sessiz });
   if (!r.ok) { durum(r.hata, true); kayitModu(false); }
 };
-$("yenile").onclick = kaynaklar;
+$("yenile").onclick = () => { kaynaklar().then(cikislar); };
+$("kaynak").onchange = sessizGuncelle;
+$("sessiz").onchange = sessizGuncelle;
 $("model").onchange = () => {
   localStorage.model = $("model").value;
   durum("Model hazırlanıyor…");
@@ -226,7 +267,7 @@ es.onerror = () => durum("Program kapalı ya da bağlantı koptu. Baslat.cmd ile
 
 // açılışta seçili modeli hemen hazırla (gerekirse indir); kayıt başlatmayı bekleme
 bilgi().then(() => { if (!kayitta) gonder("/hazirla", { model: $("model").value }); });
-kaynaklar();
+kaynaklar().then(cikislar);
 </script>
 </body>
 </html>

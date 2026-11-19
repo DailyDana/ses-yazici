@@ -23,7 +23,8 @@ DEPO = "DailyDana/ses-yazici"
 KOK = Path(__file__).resolve().parent
 # Güncellemenin dokunabileceği dosyalar; bunların dışındaki hiçbir şeye yazılmaz
 DOSYALAR = ("app.py", "surec_ses.py", "guncelle.py", "requirements.txt", "requirements-nvidia.txt",
-            "OKU-BENI.txt", "SURUM", "LICENSE", "README.md", "web/index.html", "calistir.cmd")
+            "OKU-BENI.txt", "SURUM", "LICENSE", "README.md", "web/index.html", "calistir.cmd",
+            "ses_yonlendir.py")
 
 
 def surum_tuple(s):
@@ -56,9 +57,16 @@ def guncelle():
     yerel = (KOK / "SURUM").read_text(encoding="utf-8").strip() if (KOK / "SURUM").exists() else "0"
     son = json.loads(indir(f"https://api.github.com/repos/{DEPO}/releases/latest"))
     etiket = son.get("tag_name", "")
-    if not etiket or surum_tuple(etiket) <= surum_tuple(yerel):
+    if not etiket or surum_tuple(etiket) < surum_tuple(yerel):
         return None
-    print(f"Yeni sürüm bulundu: {yerel} -> {etiket}. Güncelleniyor...")
+    # Eski bir güncelleyici sonradan eklenen dosyaları tanımaz; sürüm aynı ama dosya eksikse tamamla
+    eksik = [ad for ad in DOSYALAR if ad not in ("README.md", "calistir.cmd") and not (KOK / ad).exists()]
+    if surum_tuple(etiket) == surum_tuple(yerel):
+        if not eksik:
+            return None
+        print(f"Eksik dosyalar tamamlanıyor: {', '.join(eksik)}")
+    else:
+        print(f"Yeni sürüm bulundu: {yerel} -> {etiket}. Güncelleniyor...")
     arsiv = zipfile.ZipFile(io.BytesIO(indir(son["zipball_url"])))
     kok_ad = arsiv.namelist()[0].split("/")[0] + "/"
 
