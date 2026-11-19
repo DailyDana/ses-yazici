@@ -83,7 +83,7 @@
       <span id="sure">00:00</span>
     </div>
     <div class="ilerleme" id="ilerleme"><div></div></div>
-    <div id="durum">Hazır. Bir uygulama seçip kaydı başlatın.</div>
+    <div id="durum">Model hazırlanıyor…</div>
   </section>
 
   <div class="metinBas">
@@ -133,7 +133,7 @@ async function bilgi() {
   for (const m of b.modeller) {
     const o = document.createElement("option");
     o.value = m.id;
-    o.textContent = m.ad + (m.inmis ? "" : `  — ilk kullanımda ~${m.mb} MB indirilir`);
+    o.textContent = m.ad + (m.inmis ? "" : `  — seçince ~${m.mb} MB indirilir`);
     $("model").appendChild(o);
   }
   if (localStorage.model) $("model").value = localStorage.model;
@@ -179,6 +179,11 @@ $("anaDugme").onclick = async () => {
   if (!r.ok) { durum(r.hata, true); kayitModu(false); }
 };
 $("yenile").onclick = kaynaklar;
+$("model").onchange = () => {
+  localStorage.model = $("model").value;
+  durum("Model hazırlanıyor…");
+  gonder("/hazirla", { model: $("model").value });
+};
 $("kopyala").onclick = async () => {
   const metin = [...$("metin").querySelectorAll("p")].map(p => p.textContent.replace(/^(\d\d:\d\d:\d\d)/, "[$1] ")).join("\n\n");
   await navigator.clipboard.writeText(metin);
@@ -200,6 +205,10 @@ es.onmessage = (e) => {
     durum(`Model indiriliyor… %${o.yuzde.toFixed(0)}`);
     if (o.yuzde >= 100) setTimeout(() => $("ilerleme").style.display = "none", 800);
   }
+  else if (o.tur === "model_hazir") {
+    $("ilerleme").style.display = "none";
+    const secili = $("model").value; bilgi().then(() => $("model").value = secili);
+  }
   else if (o.tur === "basladi") {
     dosya = o.dosya; $("metin").innerHTML = '<div class="bos">Dinleniyor… İlk metin ~25 saniye içinde gelir.</div>';
     bilgi();
@@ -215,7 +224,9 @@ es.onmessage = (e) => {
 };
 es.onerror = () => durum("Program kapalı ya da bağlantı koptu. Baslat.cmd ile yeniden açın.", true);
 
-bilgi(); kaynaklar();
+// açılışta seçili modeli hemen hazırla (gerekirse indir); kayıt başlatmayı bekleme
+bilgi().then(() => { if (!kayitta) gonder("/hazirla", { model: $("model").value }); });
+kaynaklar();
 </script>
 </body>
 </html>

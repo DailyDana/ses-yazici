@@ -135,6 +135,15 @@ class Yayin:
 YAYIN = Yayin()
 
 
+def gunluk(metin):
+    """Hataları program klasöründeki hata.log'a yaz (kullanıcı gönderebilsin diye)."""
+    try:
+        with open(KOK / "hata.log", "a", encoding="utf-8") as f:
+            f.write(f"{dt.datetime.now():%Y-%m-%d %H:%M:%S} v{SURUM} {MOTOR_TURU}: {metin}\n")
+    except OSError:
+        pass
+
+
 def durum(metin, **ek):
     YAYIN.gonder("durum", metin=metin, kayit=KAYIT.calisiyor, **ek)
 
@@ -192,10 +201,29 @@ class Motor:
                         YAYIN.gonder("indirme", yuzde=round(yuzde, 1), dosya=ad)
                     return sonuc
 
-            hf_hub_download(repo, ad, local_dir=str(hedef), tqdm_class=Ilerleme)
+            self._dayanikli_indir(repo, ad, hedef, Ilerleme)
             bitti += boyut
             YAYIN.gonder("indirme", yuzde=round(100 * bitti / toplam, 1), dosya=ad)
         (hedef / ".tamam").write_text("ok")
+
+    @staticmethod
+    def _dayanikli_indir(repo, ad, hedef, ilerleme):
+        """Bağlantı kopmasına karşı 4 deneme. 2. denemeden itibaren Xet kapatılır: bazı ağlarda
+        (kurum/yurt ağı, güvenlik duvarı) Xet sunucularına erişilemiyor, düz HTTPS çalışıyor."""
+        from huggingface_hub import constants, hf_hub_download
+
+        son_hata = None
+        for deneme in range(4):
+            if deneme >= 1:
+                constants.HF_HUB_DISABLE_XET = True
+                YAYIN.gonder("uyari", metin=f"İndirme kesildi, yeniden deneniyor ({deneme + 1}/4)…")
+                time.sleep(2 * deneme)
+            try:
+                return hf_hub_download(repo, ad, local_dir=str(hedef), tqdm_class=ilerleme)
+            except Exception as e:
+                son_hata = e
+                gunluk(f"indirme hatası ({repo}/{ad}, deneme {deneme + 1}): {e!r}")
+        raise RuntimeError(f"Model indirilemedi: {son_hata}. İnternet bağlantısını kontrol edip tekrar deneyin.")
 
     def hazirla(self, anahtar):
         with self.kilit:
@@ -261,6 +289,22 @@ class Motor:
 
 
 MOTOR = Motor()
+
+
+def arka_planda_hazirla(anahtar):
+    """Modeli kayıt beklemeden indirip yükle (sayfa açılınca ve model değişince çağrılır)."""
+    def calis():
+        try:
+            MOTOR.hazirla(anahtar)
+            if not KAYIT.calisiyor:
+                durum(f"Model hazır ({MOTOR.cihaz}). Bir uygulama seçip kaydı başlatın.")
+            YAYIN.gonder("model_hazir", model=anahtar, cihaz=MOTOR.cihaz)
+        except Exception as e:
+            traceback.print_exc()
+            gunluk(traceback.format_exc())
+            YAYIN.gonder("hata", metin=f"Model hazırlanamadı: {e}")
+
+    threading.Thread(target=calis, daemon=True).start()
 
 
 # ------------------------------------------------------------------ ses kaynakları
@@ -421,6 +465,7 @@ class Kayit:
                 durum("Kayıt durdu.", dosya=str(self.dosya))
         except Exception as e:
             traceback.print_exc()
+            gunluk(traceback.format_exc())
             YAYIN.gonder("hata", metin=f"Hata: {e}")
         finally:
             self.calisiyor = False
@@ -513,6 +558,13 @@ class Isleyici(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "hata": "Bilinmeyen model"})
             if not KAYIT.baslat(str(veri.get("kaynak", "*sistem*")), model, str(veri.get("dil", "tr"))):
                 return self._json({"ok": False, "hata": "Kayıt zaten sürüyor"})
+            self._json({"ok": True})
+        elif self.path == "/hazirla":
+            model = veri.get("model", "turbo")
+            if model not in MODELLER:
+                return self._json({"ok": False, "hata": "Bilinmeyen model"})
+            if not KAYIT.calisiyor:
+                arka_planda_hazirla(model)
             self._json({"ok": True})
         elif self.path == "/durdur":
             KAYIT.durdur()
